@@ -100,6 +100,8 @@ npm run web            # open directly in the browser
 npm run typecheck      # check for TypeScript errors
 npx expo lint          # check code style
 npx expo install <pkg> # add a library (always use this instead of npm install <pkg>)
+npm run update:apk     # push JS/design changes to installed APKs (no rebuild)
+npm run build:apk      # build a new test APK (only when native things change)
 ```
 
 ## 6. Send an APK to the client (Android test build)
@@ -123,10 +125,34 @@ The build settings are already in `eas.json`:
    npx eas-cli@latest init      # links this project to your Expo account (answer "Yes")
    ```
 
-### Every time you want a new APK
+### ⚡ Most changes: send an update, no new APK (≈1 minute)
+
+The app has **EAS Update** built in. After the client installs an APK once, any change to
+screens, text, styles, data or images reaches their phone without a new build:
+
+```bash
+npm run update:apk
+```
+Type a short message when asked (e.g. "New home banners"). That's it.
+The next time the client **opens the app**, it downloads the change and restarts into it.
+(If they're offline, they keep the current version until the next launch.)
+
+You need a **new APK** only when something *native* changes:
+- you add a library with `npx expo install …` (one that has native code)
+- you change the app name, icon, splash screen, package id or permissions in `app.json`
+- you upgrade the Expo SDK
+
+The app decides this automatically with a "fingerprint" of its native parts, so an update is never
+sent to an APK it doesn't fit. ⚠️ Don't change `"version"` in `app.json` unless you're making a new APK,
+because changing it starts a new APK line and older installs stop receiving updates.
+
+### When you need a new APK
 ```bash
 npm run build:apk
 ```
+Test APKs (`preview`) are built only for 64-bit phones (`arm64-v8a`, i.e. almost every Android phone since 2017)
+and use EAS's C++ compile cache (`EAS_USE_CACHE`), so repeat builds are faster.
+Most of the wait on a free Expo plan is the **queue** before the build starts. A paid plan skips it.
 - On the first build it asks: *"Generate a new Android Keystore?"* Answer **Yes**.
   Expo creates and stores the app's signing key for you. Keep using the same Expo account,
   because Android only accepts updates signed with the same key.
@@ -135,8 +161,9 @@ npm run build:apk
 - **Send that link to the client.** They open it on their Android phone, tap **Install**,
   and allow "Install unknown apps" for their browser when Android asks.
 
-Before each new APK you send, increase `"version"` in `app.json` (e.g. `1.0.0` → `1.0.1`)
-so you and the client can tell builds apart. The client installs the new APK over the old one.
+When you do build a new APK, you can increase `"version"` in `app.json` (e.g. `1.0.0` → `1.0.1`)
+so you and the client can tell builds apart. The client installs the new APK over the old one,
+and from then on `npm run update:apk` updates that new APK.
 
 > If you sent the client an APK that was **not** built by EAS (for example the first test APK
 > that came with this project), they must **uninstall it once** before installing an EAS-built APK,
